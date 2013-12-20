@@ -95,10 +95,10 @@ def clean_quit(signum, frame):
     worker.join(1)
     worker.stopped = True
     print 'worker stopped'
-    test_time = time.time() - starttime
+    testtime = time.time() - starttime
     print '======================='
     for client in clients:
-        print 'client %d: %f Mbps' % (client.cid, client.downloaded * 8 / test_time / 1e6)
+        print 'client %d: %f Mbps' % (client.cid, client.downloaded * 8 / testtime / 1e6)
     print '======================='
     print 'bye!\n'
     os._exit(0)
