@@ -6,6 +6,12 @@ import sys
 import os
 import signal
 import argparse
+from sys import platform as _platform
+
+if _platform=='win32':
+    devnull = 'nul'
+else:
+    devnull = '/dev/null'
 
 parser = argparse.ArgumentParser()
 parser.add_argument('n_clients', help='the number of clients to generate', type=int)
@@ -26,8 +32,8 @@ class Getter():
         self.url = url
         self.ofile = ofile
         
-    def start(self):
-        urllib.urlretrieve(self.url, self.ofile)
+    def get(self):
+        return urllib.urlretrieve(self.url, self.ofile)
 
 class Client(threading.Thread):
     def __init__(self, cid, url, interval):
@@ -36,16 +42,14 @@ class Client(threading.Thread):
         self.url = url
         self.interval = interval
         self.stopped = False
-        self.cur_task_id = 0
-        self.completed_task = 0 # TODO: store the nbr of xferred bits, or req time, or rate
+        self.downloaded = 0
         
     def run(self):
         while True:
             if not self.stopped:
                 lock.acquire() # don't allow other threads to add tasks while one is being added
-                queue.put((self.cid, self.url, self.cur_task_id))
+                queue.put((self.cid, self.url))
                 lock.release()
-                self.cur_task_id += 1
                 time.sleep(self.interval)
             else:
                 break
@@ -61,11 +65,15 @@ class Worker(threading.Thread):
                 if not self.stopped:
                     if not queue.empty():
                         print ','.join([time.ctime(time.time()), str(queue.qsize())])
-                        cid, cur_url, task_id = queue.get()
-                        wget = Getter(cur_url, ofile=ofile)
-                        wget.start()
-                        queue.task_done()                
-                        clients[cid].completed_task += 1 # see TODO on completed_task
+                        cid, cur_url = queue.get()
+                        wget = Getter(cur_url, ofile=devnull)
+                        _, headers = wget.get()
+                        downloaded = headers.getheader('Content-Length')
+                        queue.task_done()
+                        if downloaded is not None:
+                            clients[cid].downloaded += int(downloaded)
+                        else:
+                            pass
                     else:
                         print ','.join([time.ctime(time.time()), '0'])
                         time.sleep(1)
@@ -74,6 +82,10 @@ class Worker(threading.Thread):
                         
             except KeyboardInterrupt:
                 break
+                
+            except RuntimeError:
+                queue.task_done()
+                continue
 
 def clean_quit(signum, frame):
     print 'interrupting...'
@@ -84,10 +96,11 @@ def clean_quit(signum, frame):
     worker.join(1)
     worker.stopped = True
     print 'worker stopped'
-    while not queue.empty():
-        queue.get()
-        queue.task_done()
-    print 'queue emptied'
+    test_time = time.time() - starttime
+    print '======================='
+    for client in clients:
+        print 'client %d: %f Mbps' % (client.cid, client.downloaded * 8 / test_time / 1e6)
+    print '======================='
     print 'bye!\n'
     sys.exit()
     #os._exit(0) # good: always terminates; bad: don't know the consequences
@@ -96,14 +109,15 @@ def clean_quit(signum, frame):
 if __name__=='__main__':
     signal.signal(signal.SIGINT, clean_quit)
     clients = []
-    base_url = 'http://google.com/index.html'  
-    #url = 'https://archive.org/download/alanoakleysmalltestvideo/spacetestSMALL.gif'
-    ofile = 'nul'
+    #base_url = 'http://www.google.com/favicon.ico'  
+    base_url = 'http://www.freeware-guide.com/download/files/playlist.zip'
     wget_interval = 9 # seconds
     client_interval = 2 # seconds
     
     worker = Worker()
     worker.start()
+    
+    starttime = time.time()
 
     for i in xrange(n_clients):
         client = Client(i, base_url, wget_interval)
