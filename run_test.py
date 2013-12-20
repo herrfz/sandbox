@@ -2,7 +2,6 @@ import time
 import urllib
 import threading
 import Queue
-import sys
 import os
 import signal
 import argparse
@@ -102,8 +101,7 @@ def clean_quit(signum, frame):
         print 'client %d: %f Mbps' % (client.cid, client.downloaded * 8 / test_time / 1e6)
     print '======================='
     print 'bye!\n'
-    sys.exit()
-    #os._exit(0) # good: always terminates; bad: don't know the consequences
+    os._exit(0)
 
     
 if __name__=='__main__':
