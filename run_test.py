@@ -7,24 +7,27 @@ import signal
 import argparse
 from sys import platform as _platform
 
-if _platform=='win32':
+if _platform == 'win32':
     devnull = 'nul'
 else:
     devnull = '/dev/null'
 
 parser = argparse.ArgumentParser()
-parser.add_argument('n_clients', help='the number of clients to generate', type=int)
-parser.add_argument('-m', '--multiplier', help='max_queue = m * n_clients', type=float)
+parser.add_argument('n_clients', help='the number of clients to generate',
+                    type=int)
+parser.add_argument('-m', '--multiplier', help='max_queue = m * n_clients',
+                    type=float)
 args = parser.parse_args()
 
 n_clients = args.n_clients if args.n_clients > 0 else 1
 if args.multiplier and args.multiplier > 0:
     q_size = int(args.multiplier * n_clients)
-else: 
+else:
     q_size = n_clients
-    
+
 queue = Queue.Queue()
 lock = threading.Lock()
+
 
 class Client(threading.Thread):
     def __init__(self, cid, url, interval):
@@ -34,40 +37,43 @@ class Client(threading.Thread):
         self.interval = interval
         self.stopped = False
         self.downloaded = 0
-        
+
     def run(self):
         while True:
             if not self.stopped:
-                lock.acquire() # don't allow other threads to add tasks while one is being added
+                lock.acquire()  # block other threads before adding a task
                 queue.put((self.cid, self.url))
                 lock.release()
                 time.sleep(self.interval)
             else:
                 break
-                
+
+
 class Worker(threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
         self.stopped = False
-        
+
     def run(self):
         while True:
             if not self.stopped:
                 if not queue.empty():
-                    print ','.join([time.ctime(time.time()), str(queue.qsize())])
+                    print ','.join([time.ctime(time.time()),
+                                    str(queue.qsize())])
                     cid, cur_url = queue.get()
-                    _ , headers = urllib.urlretrieve(cur_url, devnull)
+                    _, headers = urllib.urlretrieve(cur_url, devnull)
                     downloaded = headers.getheader('Content-Length')
                     queue.task_done()
                     if downloaded is not None:
                         clients[cid].downloaded += int(downloaded)
-                        
+
                 else:
                     print ','.join([time.ctime(time.time()), '0'])
                     time.sleep(1)
-                        
+
             else:
                 break
+
 
 def clean_quit(signum, frame):
     print 'interrupting...'
@@ -83,25 +89,26 @@ def clean_quit(signum, frame):
     agg_data = 0
     print '======================='
     for client in clients:
-        print 'client %03d: %f Mbps' % (client.cid, client.downloaded * mbps_scaler)
+        print 'client %03d: %f Mbps' % (client.cid,
+                                        client.downloaded * mbps_scaler)
         agg_data += client.downloaded
     print '======================='
     print 'average: %f Mbps' % (agg_data * mbps_scaler / n_clients)
     print 'bye!\n'
     os._exit(0)
 
-    
-if __name__=='__main__':
+
+if __name__ == '__main__':
     signal.signal(signal.SIGINT, clean_quit)
     clients = []
-    #base_url = 'http://www.google.com/favicon.ico'  
+    #base_url = 'http://www.google.com/favicon.ico'
     base_url = 'http://www.freeware-guide.com/download/files/playlist.zip'
-    wget_interval = 9 # seconds
-    client_interval = 2 # seconds
-    
+    wget_interval = 9  # seconds
+    client_interval = 2  # seconds
+
     worker = Worker()
     worker.start()
-    
+
     starttime = time.time()
 
     for i in xrange(n_clients):
@@ -109,9 +116,9 @@ if __name__=='__main__':
         client.start()
         clients.append(client)
         time.sleep(client_interval)
-    
+
     while True:
-        if queue.qsize() > q_size:  # this check works but doesn't always timely stop the test
+        if queue.qsize() > q_size:  # works but not always timely stop the test
             print 'max queue size exceeded!'
             clean_quit(signal.SIGINT, None)
         else:
