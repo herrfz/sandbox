@@ -52,30 +52,22 @@ class Worker(threading.Thread):
         
     def run(self):
         while True:
-            try:
-                if not self.stopped:
-                    if not queue.empty():
-                        print ','.join([time.ctime(time.time()), str(queue.qsize())])
-                        cid, cur_url = queue.get()
-                        _ , headers = urllib.urlretrieve(cur_url, devnull)
-                        downloaded = headers.getheader('Content-Length')
-                        queue.task_done()
-                        if downloaded is not None:
-                            clients[cid].downloaded += int(downloaded)
-                            
-                    else:
-                        print ','.join([time.ctime(time.time()), '0'])
-                        time.sleep(1)
+            if not self.stopped:
+                if not queue.empty():
+                    print ','.join([time.ctime(time.time()), str(queue.qsize())])
+                    cid, cur_url = queue.get()
+                    _ , headers = urllib.urlretrieve(cur_url, devnull)
+                    downloaded = headers.getheader('Content-Length')
+                    queue.task_done()
+                    if downloaded is not None:
+                        clients[cid].downloaded += int(downloaded)
                         
                 else:
-                    break
+                    print ','.join([time.ctime(time.time()), '0'])
+                    time.sleep(1)
                         
-            except KeyboardInterrupt:
+            else:
                 break
-                
-            except RuntimeError:
-                queue.task_done()
-                continue
 
 def clean_quit(signum, frame):
     print 'interrupting...'
