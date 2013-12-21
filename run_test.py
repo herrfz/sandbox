@@ -14,12 +14,12 @@ else:
 
 parser = argparse.ArgumentParser()
 parser.add_argument('n_clients', help='the number of clients to generate', type=int)
-parser.add_argument('-m', '--multiplier', help='max_queue = m * n_clients', type=float)
+parser.add_argument('-m', '--multiplier', help='max_queue = m * n_clients', type=int)
 args = parser.parse_args()
 
 n_clients = args.n_clients if args.n_clients > 0 else 1
 if args.multiplier and args.multiplier > 0:
-    q_size = int(args.multiplier * n_clients)
+    q_size = args.multiplier * n_clients
 else: 
     q_size = 1 # just set a small queue size such that the program will eventually stop
     
