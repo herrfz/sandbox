@@ -14,14 +14,14 @@ else:
 
 parser = argparse.ArgumentParser()
 parser.add_argument('n_clients', help='the number of clients to generate', type=int)
-parser.add_argument('-m', '--multiplier', help='max_queue = m * n_clients', type=int)
+parser.add_argument('-m', '--multiplier', help='max_queue = m * n_clients', type=float)
 args = parser.parse_args()
 
 n_clients = args.n_clients if args.n_clients > 0 else 1
 if args.multiplier and args.multiplier > 0:
-    q_size = args.multiplier * n_clients
+    q_size = int(args.multiplier * n_clients)
 else: 
-    q_size = 1 # just set a small queue size such that the program will eventually stop
+    q_size = n_clients
     
 queue = Queue.Queue()
 lock = threading.Lock()
@@ -119,7 +119,7 @@ if __name__=='__main__':
         time.sleep(client_interval)
     
     while True:
-        if queue.qsize() > q_size:  # this check is not always accurate
+        if queue.qsize() > q_size:  # this check works but doesn't always timely stop the test
             print 'max queue size exceeded!'
             clean_quit(signal.SIGINT, None)
         else:
