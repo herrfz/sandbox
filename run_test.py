@@ -18,21 +18,13 @@ parser.add_argument('-m', '--multiplier', help='max_queue = m * n_clients', type
 args = parser.parse_args()
 
 n_clients = args.n_clients
-if args.multiplier and args.multiplier < 10: # don't allow arbitrary huge multiplier
+if args.multiplier:
     q_size = args.multiplier * n_clients
 else: 
     q_size = 1 # just set a small queue size such that the program will eventually stop
     
 queue = Queue.Queue()
 lock = threading.Lock()
-
-class Getter():
-    def __init__(self, url, ofile='/dev/null'):
-        self.url = url
-        self.ofile = ofile
-        
-    def get(self):
-        return urllib.urlretrieve(self.url, self.ofile)
 
 class Client(threading.Thread):
     def __init__(self, cid, url, interval):
@@ -65,17 +57,16 @@ class Worker(threading.Thread):
                     if not queue.empty():
                         print ','.join([time.ctime(time.time()), str(queue.qsize())])
                         cid, cur_url = queue.get()
-                        wget = Getter(cur_url, ofile=devnull)
-                        _, headers = wget.get()
+                        _ , headers = urllib.urlretrieve(cur_url, devnull)
                         downloaded = headers.getheader('Content-Length')
                         queue.task_done()
                         if downloaded is not None:
                             clients[cid].downloaded += int(downloaded)
-                        else:
-                            pass
+                            
                     else:
                         print ','.join([time.ctime(time.time()), '0'])
                         time.sleep(1)
+                        
                 else:
                     break
                         
@@ -98,8 +89,9 @@ def clean_quit(signum, frame):
     testtime = time.time() - starttime
     print '======================='
     for client in clients:
-        print 'client %d: %f Mbps' % (client.cid, client.downloaded * 8 / testtime / 1e6)
+        print 'client %03d: %f Mbps' % (client.cid, client.downloaded * 8 / testtime / 1e6)
     print '======================='
+    print 'average: %f Mbps' % (sum([c.downloaded * 8 / testtime / 1e6 for c in clients]) / n_clients)
     print 'bye!\n'
     os._exit(0)
 
@@ -124,8 +116,7 @@ if __name__=='__main__':
         time.sleep(client_interval)
     
     while True:
-        # it seems like the higher the load, the less accurate queue.qsize() becomes
-        if queue.qsize() > q_size:
+        if queue.qsize() > q_size:  # this check is not always accurate
             print 'max queue size exceeded!'
             clean_quit(signal.SIGINT, None)
         else:
