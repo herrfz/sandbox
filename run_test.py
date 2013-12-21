@@ -14,12 +14,12 @@ else:
 
 parser = argparse.ArgumentParser()
 parser.add_argument('n_clients', help='the number of clients to generate', type=int)
-parser.add_argument('-m', '--multiplier', help='max_queue = m * n_clients', type=int)
+parser.add_argument('-m', '--multiplier', help='max_queue = m * n_clients', type=float)
 args = parser.parse_args()
 
-n_clients = args.n_clients
-if args.multiplier:
-    q_size = args.multiplier * n_clients
+n_clients = args.n_clients if args.n_clients > 0 else 1
+if args.multiplier and args.multiplier > 0:
+    q_size = int(args.multiplier * n_clients)
 else: 
     q_size = 1 # just set a small queue size such that the program will eventually stop
     
@@ -87,11 +87,14 @@ def clean_quit(signum, frame):
     worker.stopped = True
     print 'worker stopped'
     testtime = time.time() - starttime
+    mbps_scaler = 8 / testtime / 1e6
+    agg_data = 0
     print '======================='
     for client in clients:
-        print 'client %03d: %f Mbps' % (client.cid, client.downloaded * 8 / testtime / 1e6)
+        print 'client %03d: %f Mbps' % (client.cid, client.downloaded * mbps_scaler)
+        agg_data += client.downloaded
     print '======================='
-    print 'average: %f Mbps' % (sum([c.downloaded * 8 / testtime / 1e6 for c in clients]) / n_clients)
+    print 'average: %f Mbps' % (agg_data * mbps_scaler / n_clients)
     print 'bye!\n'
     os._exit(0)
 
