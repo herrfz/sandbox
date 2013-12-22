@@ -41,14 +41,11 @@ class Client(threading.Thread):
         self.downloaded = 0
 
     def run(self):
-        while True:
-            if not self.stopped:
-                lock.acquire()  # block other threads before adding a task
-                queue.put((self.cid, self.url))
-                lock.release()
-                time.sleep(self.interval)
-            else:
-                break
+        while not self.stopped:
+            lock.acquire()  # block other threads before adding a task
+            queue.put((self.cid, self.url))
+            lock.release()
+            time.sleep(self.interval)
 
 
 class Worker(threading.Thread):
@@ -81,21 +78,19 @@ def clean_quit(signum, frame):
         clt.stopped = True
     print 'clients stopped'
     worker.stopped = True
-    print 'emptying queue for max 10 seconds...'
-    # this is just best effort to finish all outstanding tasks
-    # queue is so unreliable it's difficult to check that it's empty
-    # qsize(), empty(), get()... all may cause program hang from time to time
-    worker.join(10)
+    print 'emptying queue...'
+    worker.join()
+    print 'queue emptied'
     print 'worker stopped'
     testtime = time.time() - starttime
     mbps_scaler = 8 / testtime / 1e6
     agg_data = 0
-    print '======================='
+    print '========================='
     for clt in clients:
         print 'client %03d: %f Mbps' % (clt.cid,
                                         clt.downloaded * mbps_scaler)
         agg_data += clt.downloaded
-    print '======================='
+    print '========================='
     print 'average: %f Mbps' % (agg_data * mbps_scaler / len(clients))
     print 'bye!\n'
     os._exit(0)
@@ -125,4 +120,5 @@ if __name__ == '__main__':
             print 'max queue size exceeded!'
             clean_quit(signal.SIGINT, None)
         else:
+            time.sleep(1)  # !!!
             continue
