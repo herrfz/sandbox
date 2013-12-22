@@ -62,12 +62,16 @@ class Worker(threading.Thread):
             if cur_qsize == 0:
                 time.sleep(1)
             else:
-                cid, cur_url = queue.get()
-                _, headers = urllib.urlretrieve(cur_url, devnull)
-                downloaded = headers.getheader('Content-Length')
-                queue.task_done()
-                if downloaded is not None:
-                    clients[cid].downloaded += int(downloaded)
+                try:
+                    cid, cur_url = queue.get()
+                    _, headers = urllib.urlretrieve(cur_url, devnull)
+                    downloaded = headers.getheader('Content-Length')
+                    queue.task_done()
+                    if downloaded is not None:
+                        clients[cid].downloaded += int(downloaded)
+
+                except:  # just carry on if anything goes wrong
+                    continue
 
 
 def clean_quit(signum, frame):
@@ -121,4 +125,3 @@ if __name__ == '__main__':
             clean_quit(signal.SIGINT, None)
         else:
             time.sleep(1)  # !!!
-            continue
