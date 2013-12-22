@@ -1,3 +1,4 @@
+'''Tester client'''
 import time
 import urllib
 import threading
@@ -30,6 +31,7 @@ lock = threading.Lock()
 
 
 class Client(threading.Thread):
+    ''' Client thread, sends (cid, url) to the queue at a regular interval'''
     def __init__(self, cid, url, interval):
         threading.Thread.__init__(self)
         self.cid = cid
@@ -50,6 +52,7 @@ class Client(threading.Thread):
 
 
 class Worker(threading.Thread):
+    ''' Worker thread, download files from url in the queue'''
     def __init__(self):
         threading.Thread.__init__(self)
         self.stopped = False
@@ -76,10 +79,12 @@ class Worker(threading.Thread):
 
 
 def clean_quit(signum, frame):
+    '''stop clients and workers, print out test reports'''
+    _, _ = signum, frame
     print 'interrupting...'
-    for client in clients:
-        client.stopped = True
-    threads = [c.join(1) for c in clients if c is not None and c.isAlive()]
+    for clt in clients:
+        clt.stopped = True
+    _ = [clt.join(1) for clt in clients if clt is not None and clt.isAlive()]
     print 'clients stopped'
     worker.join(1)
     worker.stopped = True
@@ -88,10 +93,10 @@ def clean_quit(signum, frame):
     mbps_scaler = 8 / testtime / 1e6
     agg_data = 0
     print '======================='
-    for client in clients:
-        print 'client %03d: %f Mbps' % (client.cid,
-                                        client.downloaded * mbps_scaler)
-        agg_data += client.downloaded
+    for clt in clients:
+        print 'client %03d: %f Mbps' % (clt.cid,
+                                        clt.downloaded * mbps_scaler)
+        agg_data += clt.downloaded
     print '======================='
     print 'average: %f Mbps' % (agg_data * mbps_scaler / n_clients)
     print 'bye!\n'
