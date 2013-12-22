@@ -58,24 +58,19 @@ class Worker(threading.Thread):
         self.stopped = False
 
     def run(self):
-        while True:
-            if not self.stopped:
-                if not queue.empty():
-                    print ','.join([time.ctime(time.time()),
-                                    str(queue.qsize())])
-                    cid, cur_url = queue.get()
-                    _, headers = urllib.urlretrieve(cur_url, devnull)
-                    downloaded = headers.getheader('Content-Length')
-                    queue.task_done()
-                    if downloaded is not None:
-                        clients[cid].downloaded += int(downloaded)
-
-                else:
-                    print ','.join([time.ctime(time.time()), '0'])
-                    time.sleep(1)
-
+        while not self.stopped or not queue.empty():
+            cur_qsize = queue.qsize()
+            print ','.join([time.ctime(time.time()),
+                            str(cur_qsize)])
+            if cur_qsize == 0:
+                time.sleep(1)
             else:
-                break
+                cid, cur_url = queue.get()
+                _, headers = urllib.urlretrieve(cur_url, devnull)
+                downloaded = headers.getheader('Content-Length')
+                queue.task_done()
+                if downloaded is not None:
+                    clients[cid].downloaded += int(downloaded)
 
 
 def clean_quit(signum, frame):
@@ -84,10 +79,13 @@ def clean_quit(signum, frame):
     print 'interrupting...'
     for clt in clients:
         clt.stopped = True
-    _ = [clt.join(1) for clt in clients if clt is not None and clt.isAlive()]
     print 'clients stopped'
-    worker.join(1)
     worker.stopped = True
+    print 'emptying queue for max 10 seconds...'
+    # this is just best effort to finish all outstanding tasks
+    # queue is so unreliable it's difficult to check that it's empty
+    # qsize(), empty(), get()... all may cause program hang from time to time
+    worker.join(10)
     print 'worker stopped'
     testtime = time.time() - starttime
     mbps_scaler = 8 / testtime / 1e6
@@ -98,7 +96,7 @@ def clean_quit(signum, frame):
                                         clt.downloaded * mbps_scaler)
         agg_data += clt.downloaded
     print '======================='
-    print 'average: %f Mbps' % (agg_data * mbps_scaler / n_clients)
+    print 'average: %f Mbps' % (agg_data * mbps_scaler / len(clients))
     print 'bye!\n'
     os._exit(0)
 
