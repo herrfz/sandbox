@@ -6,12 +6,16 @@ import Queue
 import os
 import signal
 import argparse
+import socket
 from sys import platform as _platform
 
 if _platform == 'win32':
     devnull = 'nul'
 else:
     devnull = '/dev/null'
+
+timeout = 5
+socket.setdefaulttimeout(timeout)
 
 parser = argparse.ArgumentParser()
 parser.add_argument('n_clients', help='the number of clients to generate',
@@ -60,7 +64,7 @@ class Worker(threading.Thread):
             print ','.join([time.ctime(time.time()),
                             str(cur_qsize)])
             if cur_qsize == 0:
-                time.sleep(1)
+                time.sleep(0.5)
             else:
                 try:
                     cid, cur_url = queue.get()
@@ -103,8 +107,8 @@ def clean_quit(signum, frame):
 if __name__ == '__main__':
     signal.signal(signal.SIGINT, clean_quit)
     clients = []
-    #base_url = 'http://www.google.com/favicon.ico'
     base_url = 'http://www.freeware-guide.com/download/files/playlist.zip'
+    #base_url = 'http://blitz:8000/coffee.mp4'
     wget_interval = 9  # seconds
     client_interval = 2  # seconds
 
