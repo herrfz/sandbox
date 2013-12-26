@@ -4,9 +4,11 @@ import urllib
 import threading
 import Queue
 import os
+import sys
 import signal
 import argparse
 import socket
+import logging
 from sys import platform as _platform
 
 if _platform == 'win32':
@@ -28,7 +30,17 @@ n_clients = args.n_clients if args.n_clients > 0 else 1
 if args.multiplier and args.multiplier > 0:
     q_size = int(args.multiplier * n_clients)
 else:
-    q_size = n_clients
+    q_size = n_clients    
+
+logger = logging.getLogger('logger')
+formatter = logging.Formatter('%(asctime)s %(message)s')
+hdlr = logging.FileHandler('test.log')
+hdlr.setFormatter(formatter)
+console_hdlr = logging.StreamHandler(sys.stdout)
+console_hdlr.setFormatter(formatter)
+logger.addHandler(hdlr)
+logger.addHandler(console_hdlr)
+logger.setLevel(logging.INFO)
 
 queue = Queue.Queue()
 lock = threading.Lock()
@@ -61,8 +73,7 @@ class Worker(threading.Thread):
     def run(self):
         while not self.stopped or not queue.empty():
             cur_qsize = queue.qsize()
-            print ','.join([time.ctime(time.time()),
-                            str(cur_qsize)])
+            logger.info(str(cur_qsize))
             if cur_qsize == 0:
                 time.sleep(0.5)
             else:
@@ -81,26 +92,25 @@ class Worker(threading.Thread):
 def clean_quit(signum, frame):
     '''stop clients and workers, print out test reports'''
     _, _ = signum, frame
-    print 'interrupting...'
+    logger.debug('interrupting...')
     for clt in clients:
         clt.stopped = True
-    print 'clients stopped'
+    logger.debug('clients stopped')
     worker.stopped = True
-    print 'emptying queue...'
+    logger.debug('emptying queue...')
     worker.join()
-    print 'queue emptied'
-    print 'worker stopped'
+    logger.debug('queue emptied')
+    logger.debug('worker stopped')
     testtime = time.time() - starttime
     mbps_scaler = 8 / testtime / 1e6
     agg_data = 0
-    print '========================='
+    logger.info('======================')
     for clt in clients:
-        print 'client %03d: %f Mbps' % (clt.cid,
-                                        clt.downloaded * mbps_scaler)
+        logger.info('client-%02d:%fMbps' % (clt.cid, 
+                                              clt.downloaded * mbps_scaler))
         agg_data += clt.downloaded
-    print '========================='
-    print 'average: %f Mbps' % (agg_data * mbps_scaler / len(clients))
-    print 'bye!\n'
+    logger.info('======================')
+    logger.info('average:%fMbps' % (agg_data * mbps_scaler / len(clients)))
     os._exit(0)
 
 
@@ -125,7 +135,7 @@ if __name__ == '__main__':
 
     while True:
         if queue.qsize() > q_size:  # works but not always timely stop the test
-            print 'max queue size exceeded!'
+            logger.warning('max queue size exceeded!')
             clean_quit(signal.SIGINT, None)
         else:
             time.sleep(1)  # !!!
