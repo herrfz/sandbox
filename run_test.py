@@ -30,11 +30,11 @@ n_clients = args.n_clients if args.n_clients > 0 else 1
 if args.multiplier and args.multiplier > 0:
     q_size = int(args.multiplier * n_clients)
 else:
-    q_size = n_clients    
+    q_size = n_clients
 
 logger = logging.getLogger('logger')
 formatter = logging.Formatter('%(asctime)s %(message)s')
-hdlr = logging.FileHandler('test.log')
+hdlr = logging.FileHandler('test.log', mode='w')
 hdlr.setFormatter(formatter)
 console_hdlr = logging.StreamHandler(sys.stdout)
 console_hdlr.setFormatter(formatter)
@@ -104,13 +104,12 @@ def clean_quit(signum, frame):
     testtime = time.time() - starttime
     mbps_scaler = 8 / testtime / 1e6
     agg_data = 0
-    logger.info('======================')
+    logger.info('=================')
     for clt in clients:
-        logger.info('client-%02d:%fMbps' % (clt.cid, 
-                                              clt.downloaded * mbps_scaler))
+        logger.info('%02d: %f Mbps', clt.cid, clt.downloaded * mbps_scaler)
         agg_data += clt.downloaded
-    logger.info('======================')
-    logger.info('average:%fMbps' % (agg_data * mbps_scaler / len(clients)))
+    logger.info('=================')
+    logger.info('average: %f Mbps', agg_data * mbps_scaler / len(clients))
     os._exit(0)
 
 
