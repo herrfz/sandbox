@@ -33,14 +33,13 @@ else:
     q_size = n_clients
 
 logger = logging.getLogger('logger')
-formatter = logging.Formatter('%(asctime)s %(message)s')
-hdlr = logging.FileHandler('test.log', mode='w')
-hdlr.setFormatter(formatter)
-console_hdlr = logging.StreamHandler(sys.stdout)
-console_hdlr.setFormatter(formatter)
-logger.addHandler(hdlr)
-logger.addHandler(console_hdlr)
 logger.setLevel(logging.INFO)
+formatter = logging.Formatter('%(asctime)s %(message)s')
+hdlrs = [logging.FileHandler('test.log', mode='w'),
+         logging.StreamHandler(sys.stdout)]
+for hdlr in hdlrs:
+    hdlr.setFormatter(formatter)
+    logger.addHandler(hdlr)
 
 queue = Queue.Queue()
 lock = threading.Lock()
