@@ -24,9 +24,12 @@ parser.add_argument('n_clients', help='the number of clients to generate',
                     type=int)
 parser.add_argument('-m', '--multiplier', help='max_queue = m * n_clients',
                     type=float)
+parser.add_argument('-l', '--logfile', help='file to log output',
+                    type=str)
 args = parser.parse_args()
 
 n_clients = args.n_clients if args.n_clients > 0 else 1
+logfile = args.logfile if args.logfile else 'test.log'
 if args.multiplier and args.multiplier > 0:
     q_size = int(args.multiplier * n_clients)
 else:
@@ -34,8 +37,8 @@ else:
 
 logger = logging.getLogger('logger')
 logger.setLevel(logging.INFO)
-formatter = logging.Formatter('%(asctime)s %(message)s')
-hdlrs = [logging.FileHandler('test.log', mode='w'),
+formatter = logging.Formatter('%(asctime)s, %(message)s')
+hdlrs = [logging.FileHandler(logfile, mode='w'),
          logging.StreamHandler(sys.stdout)]
 for hdlr in hdlrs:
     hdlr.setFormatter(formatter)
@@ -58,7 +61,8 @@ class Client(threading.Thread):
     def run(self):
         while not self.stopped:
             lock.acquire()  # block other threads before adding a task
-            queue.put((self.cid, self.url))
+            if queue.qsize() < q_size:
+                queue.put((self.cid, self.url))
             lock.release()
             time.sleep(self.interval)
 
@@ -72,8 +76,8 @@ class Worker(threading.Thread):
     def run(self):
         while not self.stopped or not queue.empty():
             cur_qsize = queue.qsize()
-            logger.info(str(cur_qsize))
             if cur_qsize == 0:
+                logger.info('{0}, {1}'.format('_', '0'))
                 time.sleep(0.5)
             else:
                 try:
@@ -83,6 +87,7 @@ class Worker(threading.Thread):
                     queue.task_done()
                     if downloaded is not None:
                         clients[cid].downloaded += int(downloaded)
+                        logger.info('{0}, {1}'.format(str(cid), str(cur_qsize)))
 
                 except:  # just carry on if anything goes wrong
                     continue
@@ -115,8 +120,8 @@ def clean_quit(signum, frame):
 if __name__ == '__main__':
     signal.signal(signal.SIGINT, clean_quit)
     clients = []
-    base_url = 'http://www.freeware-guide.com/download/files/playlist.zip'
-    #base_url = 'http://blitz:8000/coffee.mp4'
+    #base_url = 'http://www.freeware-guide.com/download/files/playlist.zip'
+    base_url = 'http://172.16.255.253/test_hobbit/hobbit_std/InternalUSEONLYTheHobbit_trailer_std-9.ts'
     wget_interval = 9  # seconds
     client_interval = 2  # seconds
 
