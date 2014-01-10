@@ -77,7 +77,7 @@ class Worker(threading.Thread):
         while not self.stopped or not queue.empty():
             cur_qsize = queue.qsize()
             if cur_qsize == 0:
-                logger.info('{0}, {1}'.format('_', '0'))
+                logger.info('_, 0')
                 time.sleep(0.5)
             else:
                 try:
@@ -87,7 +87,7 @@ class Worker(threading.Thread):
                     queue.task_done()
                     if downloaded is not None:
                         clients[cid].downloaded += int(downloaded)
-                        logger.info('{0}, {1}'.format(str(cid), str(cur_qsize)))
+                        logger.info('{0}, {1}'.format(cid, cur_qsize))
 
                 except:  # just carry on if anything goes wrong
                     continue
