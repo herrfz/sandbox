@@ -70,7 +70,7 @@ class Worker(threading.Thread):
         self.stopped = False
 
     def run(self):
-        while not self.stopped or not self.client.queue.empty():
+        while not self.stopped:
             try:
                 logger.info('{0}, {1}'.format(self.client.cid,
                                               self.client.queue.qsize()))
